@@ -40,7 +40,7 @@ PS : Use docker ps to check container ID
 
 1) docker exec -it (spark Container ID) bash
 
-2) inside bash use spark-bash
+2) inside bash use spark-shell
 
 **Load Data from HDFS**
 
