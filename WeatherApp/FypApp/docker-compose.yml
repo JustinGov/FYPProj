@@ -1,0 +1,112 @@
+version: "3"
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./Hadoop/hadoop.env
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./Hadoop/hadoop.env
+  
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864"
+    env_file:
+      - ./Hadoop/hadoop.env
+
+  nodemanager1:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    env_file:
+      - ./Hadoop/hadoop.env
+  
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    env_file:
+      - ./Hadoop/hadoop.env
+ 
+  spark:
+    container_name: sparkcontainer
+    image: ubunimage
+    build: ./spark
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    command: tail -f /dev/null
+
+  visualization:
+    container_name: viscontainer
+    image: ubunimage
+    ports:
+      - "8501:8501"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    entrypoint: streamlit run
+    command: visualapp.py
+
+  visualization2:
+    container_name: viscontainer2
+    image: ubunimage
+    ports:
+      - "8502:8501"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    entrypoint: streamlit run
+    command: visualapp.py
+
+  zookeeper:
+    container_name: zoocontainer
+    image: confluentinc/cp-zookeeper:6.2.0
+    environment: 
+      - ZOOKEEPER_CLIENT_PORT=32181
+    ports:
+      - "32181:32181"
+
+  kafka:
+    container_name: kafcontainer
+    image: confluentinc/cp-kafka:6.2.0
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:32181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    ports:
+      - "9092:9092"
+    restart: on-failure
+    depends_on:
+      - zookeeper
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+  hadoop_historyserver:
